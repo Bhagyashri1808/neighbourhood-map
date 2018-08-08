@@ -11,7 +11,7 @@ export default class Map extends Component {
 
   state={
     places:[],
-    showPlaces:true
+    showPlaces:false
   }
 
   showList = ()=>{
@@ -19,13 +19,11 @@ export default class Map extends Component {
   }
 
   componentDidMount() {
-    console.log('now i am here');
     this.map = new window.google.maps.Map(this.refs.map, {
       center: { lat: -37.8207879, lng: 144.9561307 },
       zoom: 17,
       mapTypeId: "roadmap"
     });
-
         this.getPlaces(this.map);
   }
 
@@ -55,33 +53,77 @@ export default class Map extends Component {
         title: place.name,
         map:this.map,
         animation: window.google.maps.Animation.DROP,
-        id: place.id
+        id: place.id,
+        vicinity: place.vicinity
       });
 
       this.markers.push(marker);
       placesArray.push(marker);
     //  infoWindow= new window.google.maps.InfoWindow();
       marker.addListener('click', ()=> this.populateInfoWindow(marker));
+
       }
 
       populateInfoWindow(marker) {
         // Check to make sure the infowindow is not already opened on this marker.
+        if (marker.getAnimation() !== null) {
+          marker.setAnimation(null);
+        } else {
+          marker.setAnimation(window.google.maps.Animation.BOUNCE);
+        }
         if (infoWindow.marker !== marker) {
           infoWindow.marker = marker;
-          infoWindow.setContent('<div>' + marker.title + '</div>');
+
           infoWindow.open(marker.getMap(), marker);
           // Make sure the marker property is cleared if the infoWindow is closed.
           infoWindow.addListener('closeclick', function() {
             infoWindow.marker = null;
+            marker.setAnimation(null);
           });
+
+          var clientId = "2AHAMTQRBXZ5PWY22MJWIXWB4RRJAFFT1GA3BDHVRXTPC4D0";
+          var clientSecret = "0KQNI2JNXDNXLFWODRYOJGTMP3Q04ZXB5XAOFAAQLNOSBT2C";
+          var url = "https://api.foursquare.com/v2/venues/search?client_id=" + clientId + "&client_secret=" + clientSecret + "&v=20180731&ll=" + marker.getPosition().lat() + "," + marker.getPosition().lng() + "&limit=1";
+          console.log(url);
+          fetch(url)
+          .then(
+            function (response) {
+              if (response.status !== 200) {
+                infoWindow.setContent("No data found for this location");
+                return;
+              }
+
+              // Examine the text in the response
+              response.json().then(function (data) {
+                var venue=data.response.venues[0];
+                var content=`<div id="iw-container">
+                <div class="iw-title">
+                <div>
+                <img src=${venue.categories[0].icon.prefix}64${venue.categories[0].icon.suffix} alt="${venue.name}" height="44" width="44">
+                </div>
+                <h3>${venue.name}</h3>
+                </div>
+                <div class="iw-content">
+                <p>${venue.location.formattedAddress.join('<br>')}</p>
+                </div>
+                <div class="iw-bottom-gradient"></div>
+                </div>`
+
+                infoWindow.setContent(content);
+              });
+            }
+          )
+          .catch(function (err) {
+            infoWindow.setContent("No data found for this location");
+          });
+
         }
       }
 
   render() {
-    console.log('i am here');
     return (
       <div className='main-container'>
-        
+
           {this.state.showPlaces?<DataList places={this.state.places} populateInfoWindow={this.populateInfoWindow} map={this.map}/>:''}
 
         <div className='map-container'>
